@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECU รถยนต์: คู่มืออินเทอร์แอคทีฟ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: A single-page application with a sticky top navigation bar for easy access to different sections. The structure is designed for a logical user journey: 1. Introduction (What is an ECU?). 2. Interactive Flow Diagram (How it works), allowing users to click on sensors and actuators to see details, which is more engaging than static tables. 3. Diagnosis Section, a task-oriented area with a Symptom Checker and a DTC lookup tool to help users solve real-world problems. 4. DIY Fixes & Maintenance Guide. This structure prioritizes user tasks (learning, exploring, diagnosing) over the linear format of the source report, making the information more accessible and useful. -->
+    <!-- Visualization & Content Choices: Report Info: ECU's input-process-output mechanism -> Goal: Explain system flow -> Viz/Method: Interactive HTML/CSS diagram -> Interaction: Click on components to reveal details. | Report Info: Common symptoms -> Goal: Help users diagnose -> Viz/Method: Interactive buttons -> Interaction: Click to see potential causes. | Report Info: DTC codes -> Goal: Quick lookup -> Viz/Method: Search input -> Interaction: Type code to get description. | Report Info: ECU evolution -> Goal: Show rapid adoption -> Viz/Method: Chart.js Bar Chart -> Interaction: Hover for details. This approach turns passive information into an active learning experience. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f8f9fa;
+            color: #343a40;
+        }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+        }
+        .btn {
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .component-icon {
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .component-icon:hover {
+            transform: scale(1.1);
+        }
+        .component-icon.selected {
+            background-color: #cfe2ff;
+            border-color: #007bff;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-gray-800">ECU Explorer</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#intro" class="nav-link px-3 py-2 text-sm font-medium text-gray-600 border-b-2 border-transparent">บทนำ</a>
+                        <a href="#how-it-works" class="nav-link px-3 py-2 text-sm font-medium text-gray-600 border-b-2 border-transparent">การทำงาน</a>
+                        <a href="#diagnosis" class="nav-link px-3 py-2 text-sm font-medium text-gray-600 border-b-2 border-transparent">การวินิจฉัย</a>
+                        <a href="#diy-fixes" class="nav-link px-3 py-2 text-sm font-medium text-gray-600 border-b-2 border-transparent">การแก้ไขเบื้องต้น</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <section id="intro" class="text-center py-12">
+            <h2 class="text-4xl font-extrabold text-gray-900 mb-4">ทำความรู้จัก ECU: สมองกลของรถยนต์</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600 mb-8">
+                กล่องควบคุมอิเล็กทรอนิกส์ (ECU) คือศูนย์กลางอัจฉริยะที่ควบคุมทุกอย่างในรถยนต์ของคุณ ตั้งแต่การทำงานของเครื่องยนต์ไปจนถึงระบบความปลอดภัย เพื่อให้รถทำงานได้อย่างเต็มประสิทธิภาพและราบรื่นที่สุด ส่วนนี้จะแสดงให้เห็นถึงการเติบโตและความสำคัญของ ECU ในอุตสาหกรรมยานยนต์
+            </p>
+            <div class="card p-6">
+                <h3 class="text-2xl font-bold mb-4">วิวัฒนาการของ ECU</h3>
+                <p class="text-gray-600 mb-6">จากระบบกลไกในอดีตสู่ระบบดิจิทัลที่ซับซ้อนในปัจจุบัน ECU ได้ปฏิวัติวงการยานยนต์ กราฟนี้แสดงให้เห็นถึงการผลิตที่เพิ่มขึ้นอย่างก้าวกระโดด ซึ่งสะท้อนถึงการยอมรับเทคโนโลยีนี้เป็นมาตรฐานในรถยนต์สมัยใหม่</p>
+                <div class="chart-container">
+                    <canvas id="ecuEvolutionChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <hr class="my-12 border-gray-200">
+
+        <section id="how-it-works" class="py-12">
+            <h2 class="text-3xl font-bold text-center mb-4">ECU ทำงานอย่างไร?</h2>
+            <p class="max-w-3xl mx-auto text-center text-lg text-gray-600 mb-12">
+                การทำงานของ ECU เปรียบเสมือนวงจรที่ต่อเนื่อง: รับข้อมูล (Input) จากเซ็นเซอร์, ประมวลผล (Process) และส่งคำสั่ง (Output) ไปยังแอคทูเอเตอร์เพื่อควบคุมรถยนต์ <strong class="text-blue-600">คลิกที่ไอคอน</strong> เพื่อดูรายละเอียดของแต่ละส่วนประกอบ
+            </p>
+            <div class="flex flex-col md:flex-row items-start justify-center gap-8">
+                <div id="component-details" class="card p-6 w-full md:w-1/3 lg:w-1/4 order-2 md:order-1 h-auto md:sticky md:top-24">
+                    <h3 id="details-title" class="text-xl font-bold mb-2">เลือกส่วนประกอบ</h3>
+                    <p id="details-description" class="text-gray-600">คลิกที่ไอคอนเซ็นเซอร์หรือแอคทูเอเตอร์เพื่อดูข้อมูล</p>
+                    <div id="details-impact" class="mt-4 text-sm"></div>
+                </div>
+
+                <div class="w-full md:w-2/3 lg:w-3/4 order-1 md:order-2">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                        <div class="text-center">
+                            <h4 class="text-xl font-semibold mb-4">1. รับข้อมูล (Input)</h4>
+                            <div id="sensors-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            </div>
+                        </div>
+
+                        <div class="text-center flex flex-col items-center">
+                             <div class="text-5xl my-4 md:my-0">➡️</div>
+                            <div class="bg-blue-100 border-2 border-blue-300 rounded-lg p-4">
+                                <h4 class="text-xl font-semibold">2. ประมวลผล (ECU)</h4>
+                                <p class="text-sm text-gray-700">สมองกลวิเคราะห์ข้อมูล</p>
+                            </div>
+                             <div class="text-5xl my-4 md:my-0">➡️</div>
+                        </div>
+
+                        <div class="text-center">
+                            <h4 class="text-xl font-semibold mb-4">3. สั่งการ (Output)</h4>
+                            <div id="actuators-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <hr class="my-12 border-gray-200">
+
+        <section id="diagnosis" class="py-12">
+            <h2 class="text-3xl font-bold text-center mb-4">การวินิจฉัยปัญหา</h2>
+            <p class="max-w-3xl mx-auto text-center text-lg text-gray-600 mb-12">
+                เมื่อรถมีปัญหา ECU มักจะส่งสัญญาณเตือน ส่วนนี้จะช่วยให้คุณเข้าใจอาการผิดปกติและรหัสข้อผิดพลาด (DTC) เพื่อวินิจฉัยปัญหาเบื้องต้นได้
+            </p>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="card p-6">
+                    <h3 class="text-2xl font-bold mb-4">ตรวจสอบตามอาการ</h3>
+                    <p class="text-gray-600 mb-4">เลือกอาการที่รถของคุณกำลังประสบปัญหา เพื่อดูว่าอาจเกี่ยวข้องกับส่วนประกอบใดบ้าง</p>
+                    <div id="symptoms-checker" class="flex flex-wrap gap-2">
+                    </div>
+                </div>
+                <div class="card p-6">
+                    <h3 class="text-2xl font-bold mb-4">ค้นหารหัสข้อผิดพลาด (DTC)</h3>
+                    <p class="text-gray-600 mb-4">หากคุณมีเครื่องสแกน OBD-II และได้รหัสมา ให้ป้อนรหัสด้านล่างเพื่อดูความหมาย (เช่น P0420, P0601)</p>
+                    <input type="text" id="dtc-input" placeholder="ป้อนรหัส DTC 5 หลัก" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div id="dtc-result" class="mt-4 p-4 bg-gray-50 rounded-lg min-h-[50px]"></div>
+                </div>
+            </div>
+        </section>
+
+        <hr class="my-12 border-gray-200">
+
+        <section id="diy-fixes" class="py-12">
+            <h2 class="text-3xl font-bold text-center mb-4">การแก้ไขและดูแลรักษาเบื้องต้น</h2>
+             <p class="max-w-3xl mx-auto text-center text-lg text-gray-600 mb-12">
+                ปัญหาบางอย่างสามารถแก้ไขได้ด้วยตนเอง ลองทำตามขั้นตอนง่ายๆ เหล่านี้เพื่อดูแลรักษา ECU และระบบที่เกี่ยวข้อง แต่โปรดจำไว้ว่าปัญหาส่วนใหญ่ควรปรึกษาผู้เชี่ยวชาญ
+            </p>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="card p-6">
+                    <h3 class="text-2xl font-bold mb-4">วิธีรีเซ็ต ECU</h3>
+                    <p class="text-gray-600 mb-4">การรีเซ็ต ECU (หรือ "การเรียนรู้ใหม่") สามารถแก้ไขข้อผิดพลาดชั่วคราวได้ ทำตามขั้นตอนต่อไปนี้:</p>
+                    <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                        <li>ปิดสวิตช์กุญแจและอุปกรณ์ไฟฟ้าทั้งหมด</li>
+                        <li>ถอดสายขั้วลบ (-) ของแบตเตอรี่ออก</li>
+                        <li>รอประมาณ 15-30 นาที</li>
+                        <li>ต่อสายขั้วลบ (-) กลับเข้าที่เดิมให้แน่น</li>
+                        <li>สตาร์ทเครื่องและปล่อยให้เครื่องเดินเบาสักครู่เพื่อให้ ECU เรียนรู้ใหม่</li>
+                    </ol>
+                     <p class="mt-4 text-sm text-yellow-700 bg-yellow-100 p-3 rounded-lg"><strong>ข้อควรระวัง:</strong> การรีเซ็ตจะลบข้อมูลที่ตั้งค่าไว้ เช่น สถานีวิทยุ และควรทำเมื่อแน่ใจว่าไม่ใช่ปัญหาร้ายแรง</p>
+                </div>
+                <div class="card p-6">
+                    <h3 class="text-2xl font-bold mb-4">ข้อแนะนำในการดูแลรักษา</h3>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700">
+                        <li><strong>หมั่นสังเกตอาการผิดปกติ:</strong> อย่าละเลยไฟเตือน Check Engine</li>
+                        <li><strong>ใช้เครื่องสแกน OBD-II:</strong> เป็นเครื่องมือที่มีประโยชน์ในการตรวจสอบสุขภาพรถเบื้องต้น</li>
+                        <li><strong>ตรวจสอบการเชื่อมต่อ:</strong> ตรวจสอบสายไฟและฟิวส์ที่เกี่ยวข้องว่าอยู่ในสภาพดี</li>
+                        <li><strong>ระวังการปรับจูน:</strong> การปรับจูนที่ไม่ถูกต้องอาจสร้างความเสียหายได้</li>
+                        <li><strong>ปรึกษาผู้เชี่ยวชาญ:</strong> สำหรับปัญหาร้ายแรงหรือรหัส DTC ที่ซับซ้อน (เช่น P06XX) ควรให้ช่างผู้ชำนาญดูแล</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-800 text-white mt-12">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center">
+            <p>สร้างสรรค์ขึ้นเพื่อการเรียนรู้และทำความเข้าใจเทคโนโลยียานยนต์</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sensorData = [
+                { id: 'map', name: 'MAP Sensor', icon: '💨', description: 'วัดความดันในท่อร่วมไอดีเพื่อคำนวณปริมาณอากาศ', impact: '<strong>ผลกระทบเมื่อเสีย:</strong> การเผาไหม้ไม่สมบูรณ์, กินน้ำมัน, กำลังตก' },
+                { id: 'tps', name: 'TPS Sensor', icon: '🦶', description: 'วัดตำแหน่งการเปิด-ปิดของลิ้นปีกผีเสื้อ', impact: '<strong>ผลกระทบเมื่อเสีย:</strong> ตอบสนองคันเร่งช้า, รอบเดินเบาไม่นิ่ง' },
+                { id: 'crank', name: 'Crankshaft Sensor', icon: '🔄', description: 'วัดความเร็วรอบเพลาข้อเหวี่ยงเพื่อกำหนดจังหวะจุดระเบิด', impact: '<strong>ผลกระทบเมื่อเสีย:</strong> สตาร์ทไม่ติด, เครื่องยนต์ดับ' },
+                { id: 'o2', name: 'O2 Sensor', icon: '🌿', description: 'วัดปริมาณออกซิเจนในไอเสียเพื่อปรับส่วนผสมเชื้อเพลิง', impact: '<strong>ผลกระทบเมื่อเสีย:</strong> กินน้ำมัน, มลพิษสูง' },
+                { id: 'coolant', name: 'Coolant Sensor', icon: '🌡️', description: 'วัดอุณหภูมิน้ำหล่อเย็นเครื่องยนต์', impact: '<strong>ผลกระทบเมื่อเสีย:</strong> เครื่องร้อนจัด, สตาร์ทติดยาก' },
+                { id: 'speed', name: 'Vehicle Speed Sensor', icon: '🚗', description: 'ตรวจจับความเร็วรถเพื่อควบคุมเกียร์', impact: '<strong>ผลกระทบเมื่อเสีย:</strong> เกียร์เปลี่ยนไม่ราบรื่น' }
+            ];
+
+            const actuatorData = [
+                { id: 'injector', name: 'หัวฉีดเชื้อเพลิง', icon: '💧', description: 'ฉีดน้ำมันเชื้อเพลิงเข้าสู่ห้องเผาไหม้', impact: '<strong>ผลกระทบเมื่อเสีย:</strong> กำลังตก, กินน้ำมัน, เดินไม่เรียบ' },
+                { id: 'ignition', name: 'คอยล์จุดระเบิด', icon: '⚡', description: 'สร้างประกายไฟที่หัวเทียน', impact: '<strong>ผลกระทบเมื่อเสีย:</strong> เครื่องสะดุด, กำลังตก' },
+                { id: 'throttle', name: 'ลิ้นปีกผีเสื้อไฟฟ้า', icon: '🦋', description: 'ควบคุมปริมาณอากาศเข้าเครื่องยนต์', impact: '<strong>ผลกระทบเมื่อเสีย:</strong> ตอบสนองคันเร่งผิดปกติ' },
+                { id: 'fan', name: 'พัดลมหม้อน้ำ', icon: '🌬️', description: 'ระบายความร้อนเครื่องยนต์', impact: '<strong>ผลกระทบเมื่อเสีย:</strong> เครื่องยนต์โอเวอร์ฮีท' },
+                { id: 'transmission', name: 'ระบบเกียร์อัตโนมัติ', icon: '⚙️', description: 'ควบคุมการเปลี่ยนเกียร์', impact: '<strong>ผลกระทบเมื่อเสีย:</strong> เกียร์กระตุก, สิ้นเปลืองน้ำมัน' },
+                { id: 'vvt', name: 'ระบบวาล์วแปรผัน', icon: '밸', description: 'ปรับจังหวะวาล์วเพื่อเพิ่มประสิทธิภาพ', impact: '<strong>ผลกระทบเมื่อเสีย:</strong> กำลังเครื่องยนต์ลดลง' }
+            ];
+            
+            const dtcData = {
+                'P0001': 'วงจรควบคุมปริมาณน้ำมันเชื้อเพลิงเปิด',
+                'P0011': 'ตำแหน่งเพลาลูกเบี้ยว A - จังหวะไทม์มิ่งล่วงหน้ามากไป',
+                'P0122': 'วงจรเซ็นเซอร์ตำแหน่งปีกผีเสื้อ/คันเร่ง A มีแรงดันต่ำ',
+                'P0420': 'ประสิทธิภาพของระบบ Catalytic Converter ต่ำกว่าเกณฑ์',
+                'P0500': 'เซ็นเซอร์วัดความเร็วรถยนต์ทำงานผิดปกติ',
+                'P0600': 'ปัญหาการสื่อสารอนุกรมภายในระบบ',
+                'P0601': 'ข้อผิดพลาดในการตรวจสอบหน่วยความจำภายใน ECU',
+                'P0606': 'ปัญหาโปรเซสเซอร์ของโมดูลควบคุม (ECU)',
+                'P2135': 'ปัญหาในวงจรเซ็นเซอร์ตำแหน่งคันเร่ง/ลิ้นปีกผีเสื้อ'
+            };
+
+            const symptomData = [
+                { name: 'ไฟ Check Engine', related: ['o2', 'map', 'crank'] },
+                { name: 'กินน้ำมัน', related: ['o2', 'map', 'injector'] },
+                { name: 'กำลังตก', related: ['map', 'tps', 'injector', 'ignition'] },
+                { name: 'เครื่องดับเอง', related: ['crank', 'injector'] },
+                { name: 'สตาร์ทติดยาก', related: ['crank', 'coolant', 'ignition'] },
+                { name: 'รอบไม่นิ่ง', related: ['tps', 'injector', 'throttle'] }
+            ];
+
+            const sensorsGrid = document.getElementById('sensors-grid');
+            const actuatorsGrid = document.getElementById('actuators-grid');
+            const detailsTitle = document.getElementById('details-title');
+            const detailsDescription = document.getElementById('details-description');
+            const detailsImpact = document.getElementById('details-impact');
+
+            function createComponentIcon(component) {
+                const div = document.createElement('div');
+                div.className = 'component-icon flex flex-col items-center p-2 border-2 border-gray-200 rounded-lg bg-white';
+                div.dataset.id = component.id;
+                div.innerHTML = `<div class="text-4xl">${component.icon}</div><span class="text-xs mt-1 text-center">${component.name}</span>`;
+                div.addEventListener('click', () => showDetails(component.id));
+                return div;
+            }
+
+            sensorData.forEach(s => sensorsGrid.appendChild(createComponentIcon(s)));
+            actuatorData.forEach(a => actuatorsGrid.appendChild(createComponentIcon(a)));
+
+            function showDetails(id) {
+                const allComponents = [...sensorData, ...actuatorData];
+                const component = allComponents.find(c => c.id === id);
+                if (component) {
+                    detailsTitle.textContent = component.name;
+                    detailsDescription.textContent = component.description;
+                    detailsImpact.innerHTML = component.impact;
+
+                    document.querySelectorAll('.component-icon').forEach(icon => {
+                        icon.classList.remove('selected');
+                    });
+                    document.querySelector(`.component-icon[data-id="${id}"]`).classList.add('selected');
+                }
+            }
+            
+            const dtcInput = document.getElementById('dtc-input');
+            const dtcResult = document.getElementById('dtc-result');
+            dtcInput.addEventListener('input', (e) => {
+                const code = e.target.value.toUpperCase().trim();
+                if (code.length >= 5) {
+                    const description = dtcData[code];
+                    if (description) {
+                        dtcResult.innerHTML = `<strong class="text-blue-600">${code}:</strong> ${description}`;
+                    } else if (code.startsWith('P06')) {
+                         dtcResult.innerHTML = `<strong class="text-red-600">${code}:</strong> เป็นรหัสที่เกี่ยวข้องกับปัญหาภายใน ECU โดยตรง เช่น หน่วยความจำหรือโปรเซสเซอร์ <strong class="text-red-600">ควรปรึกษาผู้เชี่ยวชาญทันที</strong>`;
+                    }
+                    else {
+                        dtcResult.textContent = 'ไม่พบข้อมูลสำหรับรหัสนี้ หรือเป็นรหัสเฉพาะผู้ผลิต';
+                    }
+                } else {
+                    dtcResult.textContent = '';
+                }
+            });
+
+            const symptomsChecker = document.getElementById('symptoms-checker');
+            symptomData.forEach(symptom => {
+                const button = document.createElement('button');
+                button.className = 'btn bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-sm hover:bg-gray-300';
+                button.textContent = symptom.name;
+                button.addEventListener('click', () => {
+                    document.querySelectorAll('.component-icon').forEach(icon => {
+                        icon.classList.remove('selected');
+                    });
+                    symptom.related.forEach(id => {
+                        const icon = document.querySelector(`.component-icon[data-id="${id}"]`);
+                        if(icon) icon.classList.add('selected');
+                    });
+                    detailsTitle.textContent = `อาการ: ${symptom.name}`;
+                    detailsDescription.textContent = 'ส่วนประกอบที่ไฮไลต์อาจเป็นสาเหตุของปัญหานี้ คลิกที่ไอคอนเพื่อดูรายละเอียดเพิ่มเติม';
+                    detailsImpact.innerHTML = '';
+                    
+                    const firstRelatedComponent = document.querySelector('.component-icon.selected');
+                    if(firstRelatedComponent){
+                       firstRelatedComponent.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+                symptomsChecker.appendChild(button);
+            });
+
+            const ctx = document.getElementById('ecuEvolutionChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['1975', '1981', '1988', '2000s', 'ปัจจุบัน'],
+                    datasets: [{
+                        label: 'เหตุการณ์สำคัญในการพัฒนา ECU',
+                        data: [10, 30, 70, 90, 100],
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.6)',
+                            'rgba(75, 192, 192, 0.6)',
+                            'rgba(255, 206, 86, 0.6)',
+                            'rgba(153, 102, 255, 0.6)',
+                            'rgba(255, 99, 132, 0.6)'
+                        ],
+                        borderColor: [
+                             'rgba(54, 162, 235, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'ระดับการยอมรับและการใช้งาน'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const labels = ['Ford เปิดตัว EEC', 'Delco ผลิต ECU ให้ GM', 'Delco ผลิต 28,000 ชิ้น/วัน', 'ECU เป็นระบบดิจิทัลเต็มตัว', 'รองรับการขับขี่อัตโนมัติ'];
+                                    return labels[context.dataIndex];
+                                }
+                            }
+                        },
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            const navLinks = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('main section');
+
+            window.addEventListener('scroll', () => {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 80) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').includes(current)) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
